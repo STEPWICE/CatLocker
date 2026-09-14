@@ -55,7 +55,7 @@ internal sealed class ModernMenuRenderer : ToolStripProfessionalRenderer
         using GraphicsPath path = ModernTheme.CreateRoundedRectangle(check, 6);
         using SolidBrush brush = new(ModernTheme.MenuCheckBackground);
         e.Graphics.FillPath(brush, path);
-        using Pen pen = new(ModernTheme.Accent, 1.6F);
+        using Pen pen = new(ModernTheme.AccentStrong, 1.6F);
         // Simple check mark.
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.DrawLines(pen, new[]

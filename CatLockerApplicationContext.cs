@@ -12,6 +12,10 @@ internal sealed class CatLockerApplicationContext : ApplicationContext
     private readonly ToolStripMenuItem keyboardOnlyMenuItem;
     private readonly ToolStripMenuItem keyboardMouseMenuItem;
     private readonly ToolStripMenuItem soundsMenuItem;
+    private readonly ToolStripMenuItem settingsMenuItem;
+    private readonly ToolStripMenuItem modeMenuItem;
+    private readonly ToolStripMenuItem exitMenuItem;
+    private bool glyphsDark;
     private readonly InputLocker inputLocker = new();
     private readonly HotKeyManager hotKeyManager = new();
     private readonly List<Bitmap> glyphs = new();
@@ -41,7 +45,7 @@ internal sealed class CatLockerApplicationContext : ApplicationContext
         {
             ShortcutKeyDisplayString = settings.GetHotkeyMenuHint()
         };
-        ToolStripMenuItem settingsMenuItem = new("Settings...", CreateMenuGlyph(ModernTheme.GlyphSettings), (_, _) => ShowSettings());
+        settingsMenuItem = new ToolStripMenuItem("Settings...", CreateMenuGlyph(ModernTheme.GlyphSettings), (_, _) => ShowSettings());
         startupMenuItem = new ToolStripMenuItem("Start with Windows", CreateMenuGlyph(ModernTheme.GlyphStartup), (_, _) => ToggleStartup())
         {
             CheckOnClick = false,
@@ -55,11 +59,11 @@ internal sealed class CatLockerApplicationContext : ApplicationContext
 
         keyboardOnlyMenuItem = new ToolStripMenuItem(LockMode.KeyboardOnly.ToDisplayText(), null, (_, _) => SetLockMode(LockMode.KeyboardOnly));
         keyboardMouseMenuItem = new ToolStripMenuItem(LockMode.KeyboardAndMouse.ToDisplayText(), null, (_, _) => SetLockMode(LockMode.KeyboardAndMouse));
-        ToolStripMenuItem modeMenuItem = new("Lock mode", CreateMenuGlyph(ModernTheme.GlyphMode));
+        modeMenuItem = new ToolStripMenuItem("Lock mode", CreateMenuGlyph(ModernTheme.GlyphMode));
         modeMenuItem.DropDownItems.Add(keyboardOnlyMenuItem);
         modeMenuItem.DropDownItems.Add(keyboardMouseMenuItem);
 
-        ToolStripMenuItem exitMenuItem = new("Exit", CreateMenuGlyph(ModernTheme.GlyphExit), (_, _) => ExitApplication());
+        exitMenuItem = new ToolStripMenuItem("Exit", CreateMenuGlyph(ModernTheme.GlyphExit), (_, _) => ExitApplication());
 
         menu = new ContextMenuStrip
         {
@@ -86,6 +90,7 @@ internal sealed class CatLockerApplicationContext : ApplicationContext
         };
         notifyIcon.DoubleClick += (_, _) => ToggleLock();
 
+        glyphsDark = ModernTheme.DarkMode;
         UpdateModeMenuState();
         UpdateTrayState();
 
@@ -493,8 +498,31 @@ internal sealed class CatLockerApplicationContext : ApplicationContext
         keyboardMouseMenuItem.Checked = settings.LockMode == LockMode.KeyboardAndMouse;
     }
 
+    private void RecreateGlyphs()
+    {
+        // Theme changed (e.g. Settings dot): swap images, dispose replaced bitmaps.
+        lockMenuItem.Image = CreateMenuGlyph(ModernTheme.GlyphLock);
+        modeMenuItem.Image = CreateMenuGlyph(ModernTheme.GlyphMode);
+        settingsMenuItem.Image = CreateMenuGlyph(ModernTheme.GlyphSettings);
+        startupMenuItem.Image = CreateMenuGlyph(ModernTheme.GlyphStartup);
+        exitMenuItem.Image = CreateMenuGlyph(ModernTheme.GlyphExit);
+
+        while (glyphs.Count > 5)
+        {
+            Bitmap old = glyphs[0];
+            glyphs.RemoveAt(0);
+            old.Dispose();
+        }
+    }
+
     private void UpdateTrayState()
     {
+        if (glyphsDark != ModernTheme.DarkMode)
+        {
+            RecreateGlyphs();
+            glyphsDark = ModernTheme.DarkMode;
+        }
+
         bool locked = inputLocker.IsLocked;
         lockMenuItem.Text = locked ? "Unlock" : "Lock now";
         menu.BackColor = ModernTheme.MenuBackground;

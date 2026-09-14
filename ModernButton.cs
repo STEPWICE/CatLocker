@@ -48,19 +48,40 @@ internal sealed class ModernButton : Button
         base.OnMouseUp(mevent);
     }
 
+    protected override void OnGotFocus(EventArgs e)
+    {
+        Invalidate();
+        base.OnGotFocus(e);
+    }
+
+    protected override void OnLostFocus(EventArgs e)
+    {
+        Invalidate();
+        base.OnLostFocus(e);
+    }
+
     protected override void OnPaint(PaintEventArgs pevent)
     {
         pevent.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         Rectangle bounds = new(0, 0, Width - 1, Height - 1);
         Color fill = GetFillColor();
         Color border = Primary ? fill : ModernTheme.Border;
-        Color text = Primary ? Color.White : ModernTheme.TextPrimary;
+        Color text = Primary ? ModernTheme.TextOnAccent : ModernTheme.TextPrimary;
 
         using GraphicsPath path = ModernTheme.CreateRoundedRectangle(bounds, 8);
         using SolidBrush fillBrush = new(fill);
         using Pen borderPen = new(border, 1F);
         pevent.Graphics.FillPath(fillBrush, path);
         pevent.Graphics.DrawPath(borderPen, path);
+
+        if (Focused)
+        {
+            Rectangle focusRect = Rectangle.Inflate(bounds, -4, -4);
+            using GraphicsPath focusPath = ModernTheme.CreateRoundedRectangle(focusRect, 5);
+            using Pen focusPen = new(Primary ? Color.FromArgb(140, Color.White) : ModernTheme.AccentMuted, 1.5F);
+            focusPen.DashStyle = DashStyle.Dot;
+            pevent.Graphics.DrawPath(focusPen, focusPath);
+        }
 
         TextRenderer.DrawText(
             pevent.Graphics,
@@ -85,9 +106,9 @@ internal sealed class ModernButton : Button
 
         if (pressing)
         {
-            return Color.FromArgb(229, 233, 241);
+            return ModernTheme.ButtonSecondaryPressed;
         }
 
-        return hovering ? Color.FromArgb(241, 245, 251) : Color.White;
+        return hovering ? ModernTheme.ButtonSecondaryHover : ModernTheme.ButtonSecondary;
     }
 }
