@@ -1,0 +1,29 @@
+## .NET / Visual Studio
+[Oo]bj/
+[Bb]in/
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+_ReSharper*/
+*.DotSettings.user
+
+## NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+## Publish artifacts (rebuilt via profile PortableWinX64)
+bin/publish/
+
+## OS
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+## App runtime data (outside repo, %AppData%\CatLocker)
+settings.json
