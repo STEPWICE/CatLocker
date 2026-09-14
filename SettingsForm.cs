@@ -320,9 +320,12 @@ internal sealed class SettingsForm : Form
         }
 
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+        bool isEditArea = e.Index < 0 || (e.State & DrawItemState.ComboBoxEdit) != 0;
         int index = e.Index < 0 ? combo.SelectedIndex : e.Index;
-        bool selected = e.Index >= 0 && (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+        bool selected = !isEditArea && (e.State & DrawItemState.Selected) == DrawItemState.Selected;
 
+        // Closed field is never painted as selected; the native drop button
+        // is covered by our themed overlay (see AttachThemedDropButton).
         Color back = selected ? ModernTheme.MenuSelected : ModernTheme.FieldBackground;
         using (SolidBrush brush = new(back))
         {
@@ -342,20 +345,72 @@ internal sealed class SettingsForm : Form
             ModernTheme.TextPrimary,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
 
-        if (e.Index < 0)
+        if (isEditArea)
         {
-            // Closed combo: themed border + chevron.
             using Pen border = new(ModernTheme.FieldBorder, 1F);
             e.Graphics.DrawRectangle(border, new Rectangle(e.Bounds.X, e.Bounds.Y, e.Bounds.Width - 1, e.Bounds.Height - 1));
-            using Pen chevron = new(ModernTheme.TextSecondary, 1.6F);
-            int cx = e.Bounds.Right - 14;
-            int cy = e.Bounds.Top + e.Bounds.Height / 2 - 1;
-            e.Graphics.DrawLines(chevron, new[] { new Point(cx - 4, cy - 2), new Point(cx, cy + 2), new Point(cx + 4, cy - 2) });
         }
         else if ((e.State & DrawItemState.Focus) == DrawItemState.Focus)
         {
             e.DrawFocusRectangle();
         }
+    }
+
+    /// <summary>
+    /// Covers the OS-painted drop button (always light, breaks dark theme)
+    /// with a themed chevron that forwards clicks to the combo.
+    /// The native dropdown list itself is untouched (keeps scrolling etc.).
+    /// </summary>
+    private static void AttachThemedDropButton(ComboBox combo)
+    {
+        Panel button = new()
+        {
+            BackColor = ModernTheme.FieldBackground,
+            Cursor = Cursors.Hand,
+            Dock = DockStyle.Right,
+            TabStop = false,
+            Width = 26
+        };
+
+        bool hover = false;
+        button.Paint += (_, e) =>
+        {
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            if (hover || combo.DroppedDown)
+            {
+                using SolidBrush hoverBrush = new(ModernTheme.AccentSoft);
+                e.Graphics.FillRectangle(hoverBrush, button.ClientRectangle);
+            }
+
+            using Pen chevron = new(combo.DroppedDown ? ModernTheme.AccentStrong : ModernTheme.TextSecondary, 1.6F);
+            int cx = button.Width / 2;
+            int cy = button.Height / 2;
+            Point[] glyph = combo.DroppedDown
+                ? new[] { new Point(cx - 4, cy + 2), new Point(cx, cy - 2), new Point(cx + 4, cy + 2) }
+                : new[] { new Point(cx - 4, cy - 2), new Point(cx, cy + 2), new Point(cx + 4, cy - 2) };
+            e.Graphics.DrawLines(chevron, glyph);
+        };
+        button.MouseEnter += (_, _) =>
+        {
+            hover = true;
+            button.Invalidate();
+        };
+        button.MouseLeave += (_, _) =>
+        {
+            hover = false;
+            button.Invalidate();
+        };
+        button.Click += (_, _) =>
+        {
+            combo.Focus();
+            combo.DroppedDown = !combo.DroppedDown;
+            button.Invalidate();
+        };
+        combo.DropDown += (_, _) => button.Invalidate();
+        combo.DropDownClosed += (_, _) => button.Invalidate();
+
+        combo.Controls.Add(button);
+        button.BringToFront();
     }
 
     private static Panel WrapNumeric(NumericUpDown numeric, Point location, int value)
@@ -437,6 +492,9 @@ internal sealed class SettingsForm : Form
 
         hotkeyComboBox.SelectedIndex = selectedIndex;
         hotkeyComboBox.SelectedIndexChanged += (_, _) => UpdatePreview();
+
+        AttachThemedDropButton(lockModeComboBox);
+        AttachThemedDropButton(hotkeyComboBox);
     }
 
     private static void ConfigureCheck(CheckBox checkBox, string text, Point location, bool isChecked)
